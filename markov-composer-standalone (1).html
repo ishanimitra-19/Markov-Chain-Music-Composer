@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markov Chain Music Composer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f1a;
+      color: #e8e6f0;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 2rem 2rem 1.5rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      background: linear-gradient(180deg, #1a1030 0%, #0f0f1a 100%);
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p { font-size: 13px; color: #6b7280; margin-top: 4px; }
+
+    main { max-width: 820px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+    .song-selector { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .song-btn {
+      flex: 1; min-width: 130px;
+      padding: 12px 10px;
+      border-radius: 12px;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: #9ca3af;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .song-btn:hover { border-color: rgba(255,255,255,0.2); color: #e8e6f0; background: rgba(255,255,255,0.07); }
+    .song-btn.active { color: #fff; border-color: transparent; }
+    .song-btn.s0.active { background: linear-gradient(135deg,#4f46e5,#7c3aed); box-shadow: 0 0 20px rgba(124,58,237,0.4); }
+    .song-btn.s1.active { background: linear-gradient(135deg,#0369a1,#0891b2); box-shadow: 0 0 20px rgba(8,145,178,0.4); }
+    .song-btn.s2.active { background: linear-gradient(135deg,#b45309,#d97706); box-shadow: 0 0 20px rgba(217,119,6,0.4); }
+    .song-btn.s3.active { background: linear-gradient(135deg,#be123c,#e11d48); box-shadow: 0 0 20px rgba(225,29,72,0.4); }
+    .song-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+    .piano-wrap {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 1.25rem 1.25rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .piano-label { font-size: 11px; color: #6b7280; margin-bottom: 10px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .piano { position: relative; display: flex; height: 90px; user-select: none; }
+    .white-key {
+      flex: 1;
+      background: #f5f0e8;
+      border: 1px solid #ccc;
+      border-radius: 0 0 6px 6px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.08s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 4px;
+      font-size: 9px;
+      color: #999;
+      font-weight: 500;
+    }
+    .white-key:hover { background: #e8e0f0; }
+    .white-key.active { background: #a78bfa !important; color: white; }
+    .black-key {
+      position: absolute;
+      width: 60%;
+      height: 58%;
+      background: #1a1025;
+      border-radius: 0 0 5px 5px;
+      cursor: pointer;
+      z-index: 2;
+      border: 1px solid #333;
+      transition: background 0.08s;
+    }
+    .black-key:hover { background: #2d1f4a; }
+    .black-key.active { background: #7c3aed !important; }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .ctrl {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .ctrl label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block; }
+    .ctrl-row { display: flex; align-items: center; gap: 8px; }
+    .ctrl-row input[type="range"] { flex: 1; accent-color: #a78bfa; }
+    .val { font-size: 14px; font-weight: 600; color: #a78bfa; min-width: 28px; text-align: right; }
+    select {
+      width: 100%; padding: 6px 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.07);
+      color: #e8e6f0;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 2px;
+    }
+
+    .btn-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+    .btn {
+      cursor: pointer; border-radius: 10px; font-size: 13px; font-weight: 600;
+      padding: 9px 20px; font-family: inherit; border: none; transition: all 0.12s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn-learn { background: linear-gradient(135deg,#4f46e5,#7c3aed); color: white; box-shadow: 0 2px 12px rgba(124,58,237,0.35); }
+    .btn-learn:hover:not(:disabled) { box-shadow: 0 2px 18px rgba(124,58,237,0.5); }
+    .btn-play  { background: linear-gradient(135deg,#059669,#10b981); color: white; box-shadow: 0 2px 12px rgba(16,185,129,0.35); }
+    .btn-play:hover:not(:disabled) { box-shadow: 0 2px 18px rgba(16,185,129,0.5); }
+    .btn-stop  { background: linear-gradient(135deg,#be123c,#e11d48); color: white; box-shadow: 0 2px 12px rgba(225,29,72,0.35); }
+    .btn-stop:hover:not(:disabled) { box-shadow: 0 2px 18px rgba(225,29,72,0.5); }
+
+    .status { font-size: 12px; color: #6b7280; min-height: 18px; margin-bottom: 0.75rem; }
+
+    .output-area {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      min-height: 60px;
+      margin-bottom: 1.25rem;
+    }
+    .note-seq { display: flex; flex-wrap: wrap; gap: 5px; min-height: 30px; align-items: center; }
+    .note-pill {
+      padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid rgba(255,255,255,0.1); color: #9ca3af;
+      background: rgba(255,255,255,0.05); transition: all 0.1s;
+    }
+    .note-pill.active { background: #7c3aed; color: white; border-color: #a78bfa; box-shadow: 0 0 10px rgba(124,58,237,0.5); }
+    .placeholder { font-size: 13px; color: #4b5563; }
+
+    .prob-section {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .section-title { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+    .prob-state { font-size: 12px; color: #9ca3af; margin-bottom: 10px; }
+    .prob-state span { color: #a78bfa; font-weight: 600; font-family: monospace; }
+    .prob-bars { display: flex; flex-direction: column; gap: 7px; }
+    .prob-row { display: flex; align-items: center; gap: 8px; }
+    .prob-note { font-size: 12px; font-weight: 600; font-family: monospace; color: #e8e6f0; min-width: 32px; }
+    .prob-bar-wrap { flex: 1; height: 20px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+    .prob-bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; display: flex; align-items: center; padding-left: 7px; }
+    .prob-pct { font-size: 11px; font-weight: 700; color: white; }
+    .prob-empty { font-size: 12px; color: #4b5563; }
+
+    .matrix-section {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+    }
+    .matrix-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .metrics { display: flex; gap: 8px; }
+    .metric { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 12px; text-align: center; }
+    .metric-val { font-size: 18px; font-weight: 700; color: #a78bfa; }
+    .metric-lbl { font-size: 10px; color: #6b7280; }
+    #matrixWrap { overflow-x: auto; }
+    #matrixWrap table { border-collapse: collapse; font-size: 11px; width: 100%; min-width: 380px; }
+    #matrixWrap th { color: #6b7280; font-weight: 600; padding: 4px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.07); white-space: nowrap; }
+    #matrixWrap td { padding: 4px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); color: #9ca3af; white-space: nowrap; }
+    #matrixWrap td.row-label { color: #a78bfa; font-weight: 600; text-align: right; font-family: monospace; }
+    .cell-bar { display: inline-block; height: 9px; background: #7c3aed; opacity: 0.5; border-radius: 2px; vertical-align: middle; margin-left: 3px; }
+
+    .custom-input-wrap { margin-bottom: 1rem; }
+    .custom-input-wrap textarea {
+      width: 100%; font-family: monospace; font-size: 12px; resize: vertical;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      padding: 10px 12px; background: rgba(255,255,255,0.04); color: #e8e6f0; line-height: 1.6;
+    }
+    .custom-input-wrap textarea:focus { outline: none; border-color: #7c3aed; }
+    .custom-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Markov Chain Composer</h1>
+  <p>Learn a melody's patterns · Generate something new · See the probabilities</p>
+</header>
+
+<main>
+
+  <div class="song-selector">
+    <button class="song-btn s0 active" onclick="selectSong(0)">
+      <span class="song-icon">🌌</span>Interstellar
+    </button>
+    <button class="song-btn s1" onclick="selectSong(1)">
+      <span class="song-icon">🎹</span>Runaway
+    </button>
+    <button class="song-btn s2" onclick="selectSong(2)">
+      <span class="song-icon">🎼</span>Für Elise
+    </button>
+    <button class="song-btn s3" onclick="selectSong(3)">
+      <span class="song-icon">✏️</span>Custom
+    </button>
+  </div>
+
+  <div class="custom-input-wrap" id="customInputWrap" style="display:none;">
+    <span class="custom-label">Custom melody (space-separated note names, R = rest)</span>
+    <textarea id="inputMelody" rows="2" placeholder="e.g. C4 E4 G4 A4 G4 E4 C4 R ..."></textarea>
+  </div>
+
+  <div class="piano-wrap">
+    <div class="piano-label">keyboard · highlighted key = current note playing</div>
+    <div class="piano" id="piano"></div>
+  </div>
+
+  <div class="controls-grid">
+    <div class="ctrl">
+      <label for="orderSlider">Chain order (n)</label>
+      <div class="ctrl-row">
+        <input type="range" id="orderSlider" min="1" max="4" step="1" value="2" />
+        <span class="val" id="orderVal">2</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <label for="lenSlider">Notes to generate</label>
+      <div class="ctrl-row">
+        <input type="range" id="lenSlider" min="8" max="64" step="4" value="32" />
+        <span class="val" id="lenVal">32</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <label for="bpmSlider">Tempo (BPM)</label>
+      <div class="ctrl-row">
+        <input type="range" id="bpmSlider" min="40" max="200" step="5" value="80" />
+        <span class="val" id="bpmVal">80</span>
+      </div>
+    </div>
+    <div class="ctrl">
+      <label for="waveSelect">Waveform</label>
+      <select id="waveSelect">
+        <option value="sine">sine</option>
+        <option value="triangle" selected>triangle</option>
+        <option value="square">square</option>
+        <option value="sawtooth">sawtooth</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-learn" id="learnBtn">Learn + Generate</button>
+    <button class="btn btn-play"  id="playBtn" disabled>▶ Play</button>
+    <button class="btn btn-stop"  id="stopBtn" disabled>■ Stop</button>
+  </div>
+  <p class="status" id="status">Select a song and click "Learn + Generate"</p>
+
+  <div class="output-area">
+    <div class="note-seq" id="noteSeq">
+      <span class="placeholder">Generated notes will appear here</span>
+    </div>
+  </div>
+
+  <div class="prob-section">
+    <div class="section-title">Next note probabilities · updates live during playback</div>
+    <div class="prob-state" id="probState">Current state: <span>—</span></div>
+    <div class="prob-bars" id="probBars">
+      <div class="prob-empty">Generate a sequence to see probabilities</div>
+    </div>
+  </div>
+
+  <div class="matrix-section">
+    <div class="matrix-header">
+      <div class="section-title" style="margin:0;">Transition matrix · top-10 states</div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-val" id="mStates">—</div><div class="metric-lbl">states</div></div>
+        <div class="metric"><div class="metric-val" id="mTrans">—</div><div class="metric-lbl">transitions</div></div>
+        <div class="metric"><div class="metric-val" id="mGen">—</div><div class="metric-lbl">generated</div></div>
+      </div>
+    </div>
+    <div id="matrixWrap"><span class="placeholder" style="font-size:12px;color:#4b5563;">Learn a melody to see the matrix</span></div>
+  </div>
+
+</main>
+
+<script>
+"use strict";
+
+const SONGS = [
+  { name:"Interstellar", notes:"A3 A3 A3 A3 F3 F3 F3 F3 C4 C4 C4 C4 E3 E3 E3 E3 A3 A3 A3 A3 F3 F3 F3 F3 C4 C4 C4 C4 E3 E3 E3 E3 G3 G3 G3 G3 E3 E3 E3 E3 F3 F3 F3 F3 C4 C4 C4 C4 G3 G3 G3 G3 E3 E3 E3 E3 F3 F3 F3 F3 A3 A3 A3 A3" },
+  { name:"Runaway",      notes:"E4 D4 C4 D4 E4 E4 E4 R D4 D4 D4 R E4 G4 G4 R E4 D4 C4 D4 E4 E4 E4 E4 D4 D4 E4 D4 C4 R C4 C4 D4 E4 G4 R E4 D4 C4 D4 E4 E4 E4 R D4 D4 D4 R E4 G4 G4" },
+  { name:"Für Elise",    notes:"E4 D4 E4 D4 E4 B3 D4 C4 A3 R C3 E3 A3 B3 R E3 G3 B3 C4 R E3 E4 D4 E4 D4 E4 B3 D4 C4 A3 R C3 E3 A3 B3 R E3 C4 B3 A3 R E4 D4 E4 D4 E4 B3 D4 C4 A3 R C3 E3 A3 B3 R E3 G3 B3 C4" },
+];
+
+const NOTE_FREQS = {
+  C3:130.81,D3:146.83,E3:164.81,F3:174.61,G3:196.00,A3:220.00,B3:246.94,
+  C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,
+  C5:523.25,D5:587.33,E5:659.25,F5:698.46,G5:783.99,A5:880.00,B5:987.77,
+  R:0,
+};
+
+const WHITE_KEYS = ["C3","D3","E3","F3","G3","A3","B3","C4","D4","E4","F4","G4","A4","B4"];
+const BLACK_KEY_DEFS = [
+  {note:"Cs3",after:0},{note:"Ds3",after:1},{note:"Fs3",after:3},{note:"Gs3",after:4},{note:"As3",after:5},
+  {note:"Cs4",after:7},{note:"Ds4",after:8},{note:"Fs4",after:10},{note:"Gs4",after:11},{note:"As4",after:12},
+];
+
+function buildPiano() {
+  const piano = document.getElementById("piano");
+  const n = WHITE_KEYS.length;
+  WHITE_KEYS.forEach(note => {
+    const key = document.createElement("div");
+    key.className = "white-key";
+    key.id = "wk-" + note;
+    key.textContent = note;
+    piano.appendChild(key);
+  });
+  const keyW = 100 / n;
+  BLACK_KEY_DEFS.forEach(({ note, after }) => {
+    const key = document.createElement("div");
+    key.className = "black-key";
+    key.id = "bk-" + note;
+    key.style.left = ((after + 1) * keyW - keyW * 0.3) + "%";
+    key.style.top = "0";
+    piano.appendChild(key);
+  });
+}
+
+function highlightPianoKey(note) {
+  document.querySelectorAll(".white-key").forEach(k => k.classList.remove("active"));
+  document.querySelectorAll(".black-key").forEach(k => k.classList.remove("active"));
+  if (!note || note === "R") return;
+  const wk = document.getElementById("wk-" + note);
+  if (wk) wk.classList.add("active");
+}
+
+let currentSongIdx = 0;
+
+function selectSong(idx) {
+  currentSongIdx = idx;
+  document.querySelectorAll(".song-btn").forEach((b, i) => b.classList.toggle("active", i === idx));
+  document.getElementById("customInputWrap").style.display = idx === 3 ? "block" : "none";
+}
+
+function getCurrentNotes() {
+  return currentSongIdx === 3
+    ? document.getElementById("inputMelody").value
+    : SONGS[currentSongIdx].notes;
+}
+
+function parseNotes(input) {
+  return input.trim().split(/\s+/).filter(n => n in NOTE_FREQS);
+}
+
+function buildChain(notes, order) {
+  if (notes.length < order + 1) return {};
+  const chain = {};
+  for (let i = 0; i <= notes.length - order - 1; i++) {
+    const state = notes.slice(i, i + order).join(",");
+    const next  = notes[i + order];
+    if (!chain[state]) chain[state] = {};
+    chain[state][next] = (chain[state][next] || 0) + 1;
+  }
+  return chain;
+}
+
+function weightedRandom(counts) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (const [key, weight] of Object.entries(counts)) {
+    r -= weight;
+    if (r <= 0) return key;
+  }
+  return Object.keys(counts)[Object.keys(counts).length - 1];
+}
+
+function generate(notes, order, length) {
+  const chain     = buildChain(notes, order);
+  const allStates = Object.keys(chain);
+  if (!allStates.length) return [];
+  const startIdx = Math.floor(Math.random() * Math.max(1, notes.length - order));
+  let state      = notes.slice(startIdx, startIdx + order);
+  const result   = [...state];
+  for (let i = 0; i < length - order; i++) {
+    const key = state.join(",");
+    if (!chain[key]) {
+      state = allStates[Math.floor(Math.random() * allStates.length)].split(",");
+      i--;
+      continue;
+    }
+    const next = weightedRandom(chain[key]);
+    result.push(next);
+    state = [...state.slice(1), next];
+  }
+  return result.slice(0, length);
+}
+
+function countTransitions(chain) {
+  return Object.values(chain).reduce((sum, nexts) => sum + Object.keys(nexts).length, 0);
+}
+
+const BAR_COLORS = ["#7c3aed","#2563eb","#0891b2","#059669","#d97706","#dc2626","#db2777"];
+
+function showProbabilities(chain, order, seq, idx) {
+  const probState = document.getElementById("probState");
+  const probBars  = document.getElementById("probBars");
+  if (!chain || idx < 0) {
+    probState.innerHTML = 'Current state: <span>—</span>';
+    probBars.innerHTML  = '<div class="prob-empty">Generate a sequence to see probabilities</div>';
+    return;
+  }
+  const stateArr = seq.slice(Math.max(0, idx - order + 1), idx + 1);
+  const stateKey = stateArr.join(",");
+  const dist     = chain[stateKey];
+  probState.innerHTML = `Current state: <span>${stateKey || "—"}</span>`;
+  if (!dist) {
+    probBars.innerHTML = '<div class="prob-empty">No transitions from this state in training data</div>';
+    return;
+  }
+  const total   = Object.values(dist).reduce((a, b) => a + b, 0);
+  const entries = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+  probBars.innerHTML = entries.map(([note, cnt], i) => {
+    const pct   = cnt / total;
+    const color = BAR_COLORS[i % BAR_COLORS.length];
+    return `<div class="prob-row">
+      <div class="prob-note">${note}</div>
+      <div class="prob-bar-wrap">
+        <div class="prob-bar" style="width:${Math.round(pct*100)}%;background:${color};">
+          <span class="prob-pct">${Math.round(pct*100)}%</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+let audioCtx = null, playTimeout = null, playing = false;
+
+function stopPlayback() {
+  playing = false;
+  if (playTimeout) { clearTimeout(playTimeout); playTimeout = null; }
+  if (audioCtx)   { audioCtx.close(); audioCtx = null; }
+}
+
+function playSequence(notes, bpm, waveform, onNote, onDone) {
+  stopPlayback();
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  playing  = true;
+  const spb = 60 / bpm;
+  let idx = 0;
+  function tick() {
+    if (!playing || idx >= notes.length) { playing = false; if (onDone) onDone(); return; }
+    const note = notes[idx], freq = NOTE_FREQS[note];
+    if (onNote) onNote(idx, note);
+    if (freq > 0 && audioCtx) {
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = waveform;
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + spb * 0.85);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + spb * 0.9);
+    }
+    idx++;
+    playTimeout = setTimeout(tick, spb * 1000);
+  }
+  tick();
+}
+
+const learnBtn  = document.getElementById("learnBtn");
+const playBtn   = document.getElementById("playBtn");
+const stopBtn   = document.getElementById("stopBtn");
+const statusEl  = document.getElementById("status");
+const noteSeqEl = document.getElementById("noteSeq");
+const matrixWrap= document.getElementById("matrixWrap");
+
+let generated = [], currentChain = {}, currentOrder = 2;
+
+document.getElementById("orderSlider").addEventListener("input", e => document.getElementById("orderVal").textContent = e.target.value);
+document.getElementById("lenSlider").addEventListener("input",   e => document.getElementById("lenVal").textContent   = e.target.value);
+document.getElementById("bpmSlider").addEventListener("input",   e => document.getElementById("bpmVal").textContent   = e.target.value);
+
+learnBtn.addEventListener("click", () => {
+  const notes  = parseNotes(getCurrentNotes());
+  const order  = parseInt(document.getElementById("orderSlider").value, 10);
+  const length = parseInt(document.getElementById("lenSlider").value, 10);
+  if (notes.length < order + 2) { statusEl.textContent = `Need at least ${order+2} valid notes for order-${order}.`; return; }
+  currentOrder = order;
+  currentChain = buildChain(notes, order);
+  generated    = generate(notes, order, length);
+  document.getElementById("mStates").textContent = Object.keys(currentChain).length;
+  document.getElementById("mTrans").textContent  = countTransitions(currentChain);
+  document.getElementById("mGen").textContent    = generated.length;
+  noteSeqEl.innerHTML = generated.map((n,i) => `<span class="note-pill" id="np${i}">${n}</span>`).join("");
+  renderMatrix(currentChain);
+  showProbabilities(currentChain, order, generated, 0);
+  statusEl.textContent = `Learned order-${order} chain from ${notes.length} notes → generated ${generated.length} notes.`;
+  playBtn.disabled = false; stopBtn.disabled = true;
+});
+
+playBtn.addEventListener("click", () => {
+  if (!generated.length) return;
+  playBtn.disabled = true; stopBtn.disabled = false;
+  playSequence(generated, parseInt(document.getElementById("bpmSlider").value,10), document.getElementById("waveSelect").value,
+    (idx, note) => {
+      document.querySelectorAll(".note-pill.active").forEach(el => el.classList.remove("active"));
+      const pill = document.getElementById("np"+idx);
+      if (pill) { pill.classList.add("active"); pill.scrollIntoView({block:"nearest",inline:"nearest"}); }
+      highlightPianoKey(note);
+      showProbabilities(currentChain, currentOrder, generated, idx);
+      statusEl.textContent = `Playing ${idx+1}/${generated.length}: ${note}`;
+    },
+    () => {
+      document.querySelectorAll(".note-pill.active").forEach(el => el.classList.remove("active"));
+      highlightPianoKey(null);
+      playBtn.disabled = false; stopBtn.disabled = true;
+      statusEl.textContent = "Playback finished.";
+    }
+  );
+});
+
+stopBtn.addEventListener("click", () => {
+  stopPlayback();
+  document.querySelectorAll(".note-pill.active").forEach(el => el.classList.remove("active"));
+  highlightPianoKey(null);
+  playBtn.disabled = false; stopBtn.disabled = true;
+  statusEl.textContent = "Stopped.";
+});
+
+function renderMatrix(chain) {
+  const allStates = Object.keys(chain);
+  if (!allStates.length) { matrixWrap.innerHTML = "<span style='font-size:12px;color:#4b5563;'>No transitions found.</span>"; return; }
+  const rowTotals = {};
+  allStates.forEach(s => { rowTotals[s] = Object.values(chain[s]).reduce((a,b)=>a+b,0); });
+  const topStates = [...allStates].sort((a,b)=>rowTotals[b]-rowTotals[a]).slice(0,10);
+  const nextNotes = [...new Set(topStates.flatMap(s=>Object.keys(chain[s])))].slice(0,10);
+  let html = "<table><thead><tr><th>state →</th>";
+  nextNotes.forEach(n => { html += `<th>${n}</th>`; });
+  html += "</tr></thead><tbody>";
+  topStates.forEach(state => {
+    html += `<tr><td class="row-label">${state}</td>`;
+    nextNotes.forEach(n => {
+      const cnt = chain[state][n]||0;
+      if (!cnt) { html += "<td></td>"; return; }
+      const pct = cnt/rowTotals[state];
+      html += `<td>${Math.round(pct*100)}%<span class="cell-bar" style="width:${Math.round(pct*36)}px"></span></td>`;
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table>";
+  matrixWrap.innerHTML = html;
+}
+
+buildPiano();
+</script>
+</body>
+</html>
