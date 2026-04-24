@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What I Learned Building a Markov Chain Music Composer from Scratch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f7f4;
+      --surface: #ffffff;
+      --text: #1a1a18;
+      --text-muted: #6b6a64;
+      --border: rgba(0,0,0,0.12);
+      --accent: #185fa5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18; --surface: #242422;
+        --text: #f1efe8; --text-muted: #888780;
+        --border: rgba(255,255,255,0.1); --accent: #378add;
+      }
+    }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 17px;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    article { max-width: 680px; margin: 0 auto; }
+    header { margin-bottom: 2.5rem; }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.5rem;
+    }
+    .byline { font-size: 13px; color: var(--text-muted); font-family: system-ui, sans-serif; }
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 2.5rem 0 0.75rem;
+      font-family: system-ui, sans-serif;
+    }
+    p { margin-bottom: 1.2rem; }
+    code {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+    pre {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 1.25rem 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    blockquote {
+      border-left: 3px solid var(--accent);
+      margin: 1.5rem 0;
+      padding: 0.25rem 0 0.25rem 1.25rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    a { color: var(--accent); }
+    .demo-link {
+      display: inline-block;
+      margin: 1rem 0;
+      padding: 9px 20px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+<article>
+
+<header>
+  <h1>What I Learned Building a Markov Chain Music Composer from Scratch</h1>
+  <p class="byline">Lab 5 — Automated Composition &nbsp;|&nbsp; Web Audio</p>
+</header>
+
+<p>
+  When you first hear about Markov chains for music generation, the concept sounds almost absurdly simple:
+  count which notes follow which other notes in a piece, then use those counts as probabilities to pick
+  what comes next. No neural networks, no gradient descent, no 200-page papers.
+  Just a table of counts and a random number generator.
+</p>
+
+<p>
+  I assumed this simplicity meant the results would be obviously bad — rhythmically incoherent, harmonically
+  random noise. What surprised me is that even a first-order chain over a handful of bars produces something
+  that sounds vaguely <em>like</em> the original melody. Not good music, exactly, but clearly descended from it.
+  The experience of hearing that for the first time made me think differently about what "musical structure" actually is.
+</p>
+
+<a href="index.html" class="demo-link">Try the composer →</a>
+
+<h2>How a Markov chain actually works here</h2>
+
+<p>
+  The chain learns from a sequence of note names — <code>C4 C4 G4 G4 A4 A4 G4 ...</code> — and builds
+  a transition table. For an order-1 chain, each state is a single note. For an order-2 chain, each
+  state is a pair of consecutive notes. The chain records how often each state is followed by each possible
+  next note across the training data.
+</p>
+
+<pre>
+// Simplified: what buildChain produces for order=1
+// from "C4 G4 A4 G4 F4"
+{
+  "C4": { "G4": 1 },
+  "G4": { "A4": 1, "F4": 1 },
+  "A4": { "G4": 1 }
+}
+</pre>
+
+<p>
+  Generation then works by picking a random starting state, sampling the next note proportionally to the
+  counts, shifting the window forward, and repeating. If you reach a state you haven't seen during training
+  (which can happen at higher orders if training data is sparse), you jump to a random known state and
+  keep going. This dead-end recovery is a small detail that makes a real difference in practice.
+</p>
+
+<h2>The order dial: the most interesting knob</h2>
+
+<p>
+  The single most illuminating thing I built was the order slider. Here is what the extremes sound like
+  and what they tell you:
+</p>
+
+<p>
+  <strong>Order 1</strong> — each note depends only on the previous note. The output is melodically plausible
+  (notes that co-occur in the training data tend to recur together) but structurally formless. It wanders.
+  You get something that sounds vaguely "in the style of" the original, the way a parody sounds like
+  the thing it's parodying.
+</p>
+
+<p>
+  <strong>Order 4</strong> — each note depends on the previous four. With a short training melody like
+  Twinkle Twinkle, almost every 4-gram is unique, so the generated sequence rarely diverges from the
+  original. You're essentially playing back training data with a few random jumps.
+</p>
+
+<blockquote>
+  Higher order = more faithful, less creative. Lower order = more creative, less coherent.
+  This tradeoff is not a bug — it's the fundamental tension in any generative model.
+</blockquote>
+
+<p>
+  What I didn't expect is that this tradeoff is so sharp. There's no obvious "sweet spot" — the right
+  order depends entirely on how much training data you have and what kind of output you want. With
+  just 64 notes of Twinkle Twinkle, order 2 or 3 gives the best balance. Feed it a full Bach chorale
+  and order 3 or 4 becomes interesting.
+</p>
+
+<h2>Rests are notes too</h2>
+
+<p>
+  I included <code>R</code> (rest) as a first-class token in the note vocabulary rather than filtering it out.
+  This turned out to be more important than I expected. Rests carry rhythmic information — they appear
+  at phrase boundaries in Twinkle Twinkle, and the chain learns this. An order-2 chain quickly figures
+  out that rests tend to follow <code>D4</code> or <code>G4</code> in that melody. If you strip rests,
+  you lose the phrase structure entirely and everything collapses into an undifferentiated stream.
+</p>
+
+<h2>The transition matrix as a diagnostic</h2>
+
+<p>
+  The matrix visualization (rows = states, columns = next notes, cell = probability) started as a debugging
+  tool and became the most pedagogically useful part of the app. You can immediately see the structure
+  of the training data:
+</p>
+
+<p>
+  At order 1, most states have several outgoing transitions with real probability mass spread across them —
+  the melody reuses notes in varied contexts. At order 4, the matrix is very sparse (most states appear
+  exactly once) and the transition probabilities are all 1.0 — each long context uniquely determines the
+  next note. Sparsity in the matrix is a visual warning that your order is too high for your training data.
+</p>
+
+<h2>WebAudio: one oscillator per note</h2>
+
+<p>
+  Each note spawns its own <code>OscillatorNode</code> and <code>GainNode</code>, connected through a
+  short attack and exponential decay envelope. Oscillators in WebAudio are cheap and designed to be
+  created and discarded — you should not try to reuse them. The pattern is:
+</p>
+
+<pre>
+const osc  = ctx.createOscillator();
+const gain = ctx.createGain();
+osc.connect(gain);
+gain.connect(ctx.destination);
+// schedule envelope
+osc.start(ctx.currentTime);
+osc.stop(ctx.currentTime + duration);
+// osc is garbage collected after stop()
+</pre>
+
+<p>
+  One counterintuitive thing: you must not call <code>audioCtx.close()</code> immediately after
+  <code>osc.stop()</code> — the context needs to stay alive until the scheduled audio finishes playing.
+  Closing it early cuts off the last note. The fix is to close the context only when the user explicitly
+  stops playback or the full sequence ends.
+</p>
+
+<h2>What this taught me about music</h2>
+
+<p>
+  Building this made me think about melody in a new way. A melody is not just a sequence of pitches — it is
+  a probability distribution over "what note comes next given the recent context." The Markov chain makes
+  that distribution explicit and manipulable. When you hear a melody and recognize it as belonging to a
+  certain style or genre, you are in some sense recognizing the shape of its transition distribution.
+</p>
+
+<p>
+  The failure modes of the chain — aimless wandering at order 1, faithful reproduction at order 4 — bracket
+  the interesting middle ground where real composition lives. Composers internalize the transition statistics
+  of their musical tradition and then make choices that are locally probable but globally surprising. The
+  Markov chain can only do the locally probable part. That's a useful thing to know.
+</p>
+
+<h2>Going further</h2>
+
+<p>
+  The natural extensions from here are: learning from MIDI files instead of hardcoded note strings (the
+  <code>blobToNoteSequence</code> function from the Magenta library handles this), modeling rhythm separately
+  from pitch (the current implementation treats every note as the same duration), and allowing the user to
+  constrain generation to a particular key or scale. Each of these is a relatively small addition, but
+  the third one — scale constraints — is interesting because it amounts to layering music theory on top
+  of the statistical model rather than inside it.
+</p>
+
+<p>
+  The code for this project is in the same directory as this post. The composer runs entirely in the
+  browser with no server or external dependencies — just three plain JavaScript files and a stylesheet.
+</p>
+
+</article>
+</body>
+</html>

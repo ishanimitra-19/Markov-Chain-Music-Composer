@@ -1,0 +1,350 @@
+/* ── Reset & base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f8f7f4;
+  --surface: #ffffff;
+  --surface2: #f1efe8;
+  --border: rgba(0,0,0,0.12);
+  --border-mid: rgba(0,0,0,0.22);
+  --text: #1a1a18;
+  --text-muted: #6b6a64;
+  --accent: #185fa5;
+  --accent-bg: #e6f1fb;
+  --accent-text: #0c447c;
+  --danger: #a32d2d;
+  --danger-bg: #fcebeb;
+  --danger-text: #791f1f;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a18;
+    --surface: #242422;
+    --surface2: #2c2c2a;
+    --border: rgba(255,255,255,0.1);
+    --border-mid: rgba(255,255,255,0.2);
+    --text: #f1efe8;
+    --text-muted: #888780;
+    --accent: #378add;
+    --accent-bg: #042c53;
+    --accent-text: #b5d4f4;
+    --danger: #e24b4a;
+    --danger-bg: #501313;
+    --danger-text: #f7c1c1;
+  }
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 0 0 4rem;
+}
+
+/* ── Header ── */
+header {
+  padding: 2rem 2rem 1.25rem;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Layout ── */
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.section {
+  margin-bottom: 1.5rem;
+}
+
+/* ── Labels & hints ── */
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── Textarea ── */
+textarea {
+  width: 100%;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  resize: vertical;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.valid-notes {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+#validNoteList {
+  font-family: 'Courier New', monospace;
+}
+
+/* ── Controls grid ── */
+.controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ctrl-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.val {
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 28px;
+  text-align: right;
+}
+
+select {
+  padding: 6px 10px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  width: 100%;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Buttons ── */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+button {
+  cursor: pointer;
+  border: 0.5px solid var(--border-mid);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 16px;
+  font-family: inherit;
+  transition: background 0.1s, transform 0.08s;
+}
+
+button:hover:not(:disabled) { background: var(--surface2); }
+button:active:not(:disabled) { transform: scale(0.98); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--surface);
+  font-weight: 500;
+}
+
+.btn-play {
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+.btn-play:hover:not(:disabled) {
+  filter: brightness(0.94);
+  background: var(--accent-bg);
+}
+
+.btn-stop {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-color: var(--danger);
+}
+
+.btn-stop:hover:not(:disabled) {
+  filter: brightness(0.94);
+  background: var(--danger-bg);
+}
+
+/* ── Status ── */
+.status {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 20px;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Output area ── */
+.output-area {
+  background: var(--surface2);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  min-height: 60px;
+}
+
+.note-seq {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 30px;
+  align-items: center;
+}
+
+.note-pill {
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.note-pill.active {
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.placeholder {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Matrix section ── */
+.matrix-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.matrix-header label {
+  margin: 0;
+}
+
+.metrics {
+  display: flex;
+  gap: 10px;
+}
+
+.metric {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  text-align: center;
+  min-width: 72px;
+}
+
+.metric-val {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.metric-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── Transition matrix table ── */
+#matrixWrap {
+  overflow-x: auto;
+}
+
+#matrixWrap table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: 100%;
+  min-width: 400px;
+}
+
+#matrixWrap th {
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+#matrixWrap td {
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+#matrixWrap td.row-label {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+}
+
+.cell-bar {
+  display: inline-block;
+  height: 10px;
+  background: var(--accent);
+  opacity: 0.4;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-left: 3px;
+}
